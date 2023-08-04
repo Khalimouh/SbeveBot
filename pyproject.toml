@@ -7,8 +7,9 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-"discord.py" = "^2.3.0"
+"discord.py" = { version = "*", extras = ["voice"] }
 python-dotenv = "^1.0.0"
+yt-dlp = "^2023.7.6"
 
 
 [tool.poetry.group.dev.dependencies]
