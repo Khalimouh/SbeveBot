@@ -124,7 +124,7 @@ class SteveBot(discord.Client):
             selected_song= marshalled_list[int(msg.content) - 1 ]
             selected_song_id = selected_song.videoId
 
-            await msg.reply(f"'{selected_song.artist} - {selected_song.titre} - {selected_song.duration}")
+            await msg.reply(f"Now playing: {selected_song.artist} - {selected_song.titre} - {selected_song.duration}")
 
             with YoutubeDL(self.ytdl_options) as yt:
                 youtube_str = f'https://www.youtube.com/watch?v={selected_song_id}'
@@ -141,6 +141,11 @@ class SteveBot(discord.Client):
                 return
 
         if message.content.startswith("#play"):
+            if message.author.voice and message.author.voice.channel:
+                channel = message.author.voice.channel
+                self.voice_channel = await channel.connect()
+            else:
+                await message.reply("You are not connected to a voice channel, retard !")
 
             tokens = message.content.split(" ")
 
@@ -150,13 +155,12 @@ class SteveBot(discord.Client):
             query = " ".join(tokens[1:])
             searchlist = self.ytmusic.search(query,filter="songs")
 
-            #TODO: add multiple artists names
             marshalled_list = list(map(lambda x: ytApiResult(x["title"], x["duration"],x["videoId"], x["artists"][0]["name"]), searchlist))[0]
 
             selected_song= marshalled_list
             selected_song_id = selected_song.videoId
 
-            await message.reply(f"'{selected_song.artist} - {selected_song.titre} - {selected_song.duration}")
+            await message.reply(f"Now playing: {selected_song.artist} - {selected_song.titre} - {selected_song.duration}")
 
             with YoutubeDL(self.ytdl_options) as yt:
                 youtube_str = f'https://www.youtube.com/watch?v={selected_song_id}'
