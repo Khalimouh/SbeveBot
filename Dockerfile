@@ -1,25 +1,12 @@
-FROM python:3.11-buster as builder
+FROM python:3.11.6-slim-bookworm
 
 RUN pip install poetry==1.2.0
+RUN apt update -y
+RUN apt install opus-tools ffmpeg -y
 
-ENV POETRY_NO_INTERACTION=1 \
-    POETRY_VIRTUALENVS_IN_PROJECT=1 \
-    POETRY_VIRTUALENVS_CREATE=1 \
-    POETRY_CACHE_DIR=/tmp/poetry_cache
+COPY . /sbevebot
 
 WORKDIR /sbevebot
+RUN poetry install --without dev
 
-COPY pyproject.toml poetry.lock ./
-
-RUN --mount=type=cache,target=$POETRY_CACHE_DIR poetry install --without dev --no-root
-
-FROM python:3.11-slim-buster as runtime
-
-ENV VIRTUAL_ENV=/sbevebot/.venv \
-    PATH="/app/.venv/bin:$PATH"
-
-COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
-
-COPY sbevebot ./sbevebot
-
-ENTRYPOINT ["ls"]
+ENTRYPOINT ["poetry", "run","python" ,"./sbevebot/steve.py", "./sbevebot/.env"]

@@ -133,8 +133,6 @@ class SteveBot(discord.Client):
             if info:
                 try:
                     self.voice_channel.play(discord.FFmpegOpusAudio(info["url"]))
-                    self.voice_channel.source = discord.PCMVolumeTransformer(self.voice_channel.source)
-                    self.voice_channel.source.volume = 0.7
                 except TypeError as e:
                     print(e)
             else:
@@ -169,8 +167,6 @@ class SteveBot(discord.Client):
             if info:
                 try:
                     self.voice_channel.play(discord.FFmpegOpusAudio(info["url"]))
-                    self.voice_channel.source = discord.PCMVolumeTransformer(self.voice_channel.source)
-                    self.voice_channel.source.volume = 0.7
                 except TypeError as e:
                     print(e)
             else:
