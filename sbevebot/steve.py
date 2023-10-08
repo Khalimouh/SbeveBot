@@ -10,6 +10,7 @@ from discord import Intents, Embed
 from typing import Any
 from ytmusicapi import YTMusic
 from dataclasses import dataclass
+from collections import deque
 
 def pp_size_function():
     size =  random.randrange(20)
@@ -51,10 +52,13 @@ class SteveBot(discord.Client):
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
                 'preferredquality': '192',
-            }],
-        }
-        self.ffmpeg_options = {'options': '-vn'}
+            }]}
+
+        self.ffmpeg_before_options = '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'
+        self.ffmpeg_options = '-vn'
         self.ytmusic = YTMusic("oauth.json", language='fr')
+
+        self.song_queue = deque(maxlen=20)
 
     async def on_ready(self):
         for _ in self.guilds:
@@ -79,16 +83,39 @@ class SteveBot(discord.Client):
                 await message.reply("You are not connected to a voice channel, retard !")
         if message.content.startswith("#leave"):
             if self.voice_channel:
+                self.song_queue.clear()
                 await self.voice_channel.disconnect()
                 self.voice_channel = None
             else:
                 await message.reply("You are not connected to a voice channel, retard !")
 
+        if message.content.startswith("#qsize"):
+            await message.reply(f"Queue size: {len(self.song_queue)}")
+
+        if message.content.startswith("#stop"):
+            if self.voice_channel.is_playing() or self.voice_channel.is_paused():
+                self.voice_channel.stop()
+
+        if message.content.startswith("#resume"):
+            if self.voice_channel.is_paused():
+                self.voice_channel.resume()
+
+        if message.content.startswith("#pause"):
+            if self.voice_channel.is_playing():
+                self.voice_channel.pause()
+
+        if message.content.startswith("#skip"):
+            if self.voice_channel.is_playing():
+                self.voice_channel.stop()
+                await message.reply("Skipping this dogshit ass song...")
+                self.__check_queue()
+
         if message.content.startswith("#search"):
             assert self.ytmusic
             if message.author.voice and message.author.voice.channel:
-                channel = message.author.voice.channel
-                self.voice_channel = await channel.connect()
+                if not self.voice_channel:
+                    channel = message.author.voice.channel
+                    self.voice_channel = await channel.connect()
             else:
                 await message.reply("You are not connected to a voice channel, retard !")
 
@@ -124,24 +151,20 @@ class SteveBot(discord.Client):
             selected_song= marshalled_list[int(msg.content) - 1 ]
             selected_song_id = selected_song.videoId
 
-            await msg.reply(f"Now playing: {selected_song.artist} - {selected_song.titre} - {selected_song.duration}")
 
-            with YoutubeDL(self.ytdl_options) as yt:
-                youtube_str = f'https://www.youtube.com/watch?v={selected_song_id}'
-                info = yt.extract_info(youtube_str, download=False)
-
-            if info:
-                try:
-                    self.voice_channel.play(discord.FFmpegOpusAudio(info["url"]))
-                except TypeError as e:
-                    print(e)
+            if self.voice_channel.is_playing():
+                self.song_queue.append(selected_song_id)
+                await message.reply(f"Enqueued: {selected_song.artist} - {selected_song.titre} - {selected_song.duration}")
             else:
-                return
+                await message.reply(f"Now playing: {selected_song.artist} - {selected_song.titre} - {selected_song.duration}")
+
+            self.__play_song(selected_song_id)
 
         if message.content.startswith("#play"):
             if message.author.voice and message.author.voice.channel:
-                channel = message.author.voice.channel
-                self.voice_channel = await channel.connect()
+                if not self.voice_channel:
+                    channel = message.author.voice.channel
+                    self.voice_channel = await channel.connect()
             else:
                 await message.reply("You are not connected to a voice channel, retard !")
 
@@ -158,19 +181,31 @@ class SteveBot(discord.Client):
             selected_song= marshalled_list
             selected_song_id = selected_song.videoId
 
-            await message.reply(f"Now playing: {selected_song.artist} - {selected_song.titre} - {selected_song.duration}")
-
-            with YoutubeDL(self.ytdl_options) as yt:
-                youtube_str = f'https://www.youtube.com/watch?v={selected_song_id}'
-                info = yt.extract_info(youtube_str, download=False)
-
-            if info:
-                try:
-                    self.voice_channel.play(discord.FFmpegOpusAudio(info["url"]))
-                except TypeError as e:
-                    print(e)
+            if self.voice_channel.is_playing():
+                self.song_queue.append(selected_song_id)
+                await message.reply(f"Enqueued: {selected_song.artist} - {selected_song.titre} - {selected_song.duration}")
             else:
-                return
+                await message.reply(f"Now playing: {selected_song.artist} - {selected_song.titre} - {selected_song.duration}")
+
+            self.__play_song(selected_song_id)
+
+    def __play_song(self, song_id: str):
+        with YoutubeDL(self.ytdl_options) as yt:
+            youtube_str = f'https://www.youtube.com/watch?v={song_id}'
+            info = yt.extract_info(youtube_str, download=False)
+
+        if info:
+            try:
+                self.voice_channel.play(discord.FFmpegOpusAudio(info["url"],options=self.ffmpeg_options, before_options=self.ffmpeg_before_options), after=lambda x=None: self.__check_queue())
+            except TypeError as e:
+                print(e)
+        else:
+            return
+
+    def __check_queue(self):
+        if len(self.song_queue) > 0:
+            current_id = self.song_queue.popleft()
+            self.__play_song(current_id)
 
 if __name__ == "__main__":
     # Load configuration
