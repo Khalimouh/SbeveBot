@@ -9,4 +9,4 @@ COPY . /sbevebot
 WORKDIR /sbevebot
 RUN poetry install --without dev
 
-ENTRYPOINT ["poetry", "run","python" ,"./sbevebot/steve.py", "./sbevebot/.env"]
+ENTRYPOINT ["poetry", "run","python" ,"./sbevebot/steve.py", "./sbevebot/.env","1>","/dev/null"]
